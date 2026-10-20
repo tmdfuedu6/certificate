@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>MSW 크리에이터 스쿨 수료증</title>
+<style>
+  @font-face { font-family: "Pretendard"; src: url(fonts/Pretendard-Regular.woff2) format("woff2"); font-display: block; }
+  :root { --navy: #003462; --blue: #009ADB; --lime: #C3D600; --ink: #1D1B1B; --sub: #5B6470; --bg: #F3F5F8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Pretendard", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+  .bar { height: 6px; background: linear-gradient(90deg, var(--navy) 0 33.3%, var(--blue) 33.3% 66.6%, var(--lime) 66.6%); }
+  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; color: var(--navy); margin: 4px 0 16px; text-align: center; }
+  #cert { width: 100%; display: block; box-shadow: 0 4px 18px rgba(0, 30, 70, .15); background: #fff; -webkit-touch-callout: default; }
+  .actions { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  button, .btn { font: inherit; font-size: 18px; border: 0; border-radius: 12px; padding: 16px; background: var(--navy); color: #fff; text-align: center; text-decoration: none; cursor: pointer; }
+  .hint { font-size: 14px; color: var(--sub); text-align: center; line-height: 1.6; margin: 14px 0 0; }
+  .msg { text-align: center; padding: 60px 8px; }
+  .msg p { font-size: 18px; margin: 0 0 8px; }
+  .msg small { color: var(--sub); font-size: 14px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<main>
+  <h1>MSW 크리에이터 스쿨 수료증</h1>
+
+  <div class="msg" id="loading"><p>수료증을 만드는 중…</p></div>
+  <div class="msg" id="error" hidden><p id="errTitle"></p><small id="errSub"></small></div>
+
+  <div id="done" hidden>
+    <img id="cert" alt="수료증">
+    <div class="actions">
+      <button type="button" id="save">사진으로 저장하기</button>
+    </div>
+    <p class="hint">버튼이 동작하지 않으면 수료증 이미지를 <b>길게 눌러</b><br>'사진에 저장' 또는 '이미지 저장'을 선택하세요.<br>이 화면을 닫으면 다시 열 수 없으니 지금 저장해 주세요.</p>
+  </div>
+</main>
+
+<script src="certificate.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var FILE_NAME = 'MSW_수료증.png';
+
+  // #d=... 를 읽은 즉시 주소창에서 지운다 (방문 기록·공유 시 이름이 남지 않도록)
+  var match = /(?:^#|&)d=([A-Za-z0-9_-]+)/.exec(location.hash);
+  var token = match ? match[1] : '';
+  if (location.hash) history.replaceState(null, '', location.pathname);
+
+  function fail(title, sub) {
+    $('loading').hidden = true;
+    $('errTitle').textContent = title;
+    $('errSub').textContent = sub;
+    $('error').hidden = false;
+  }
+
+  var data = token ? Certificate.decode(token) : null;
+  if (!data) return fail('수료증 정보를 찾을 수 없습니다.', '발급 화면의 QR을 다시 찍어주세요.');
+  if (Certificate.isExpired(data)) return fail('유효시간이 지난 QR입니다.', '선생님께 다시 발급을 요청해 주세요.');
+
+  var canvas = document.createElement('canvas');
+  var blob = null;
+
+  Certificate.render(canvas, data.n, data.d).then(function () {
+    canvas.toBlob(function (b) {
+      blob = b;
+      $('cert').src = URL.createObjectURL(b);
+      $('loading').hidden = true;
+      $('done').hidden = false;
+    }, 'image/png');
+  }).catch(function () {
+    fail('수료증을 만들지 못했습니다.', '네트워크 연결을 확인한 뒤 QR을 다시 찍어주세요.');
+  });
+
+  $('save').addEventListener('click', function () {
+    if (!blob) return;
+    var file = new File([blob], FILE_NAME, { type: 'image/png' });
+    // 모바일: 공유 시트 → '이미지 저장'으로 사진첩에 바로 저장
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file] }).catch(function () {});
+      return;
+    }
+    var a = document.createElement('a');
+    a.href = $('cert').src;
+    a.download = FILE_NAME;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+})();
+</script>
+</body>
+</html>
