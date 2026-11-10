@@ -2,7 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#003462">
 <meta name="robots" content="noindex">
 <meta name="referrer" content="no-referrer">
 <title>MSW 크리에이터 스쿨 수료증</title>
@@ -12,12 +13,14 @@
   * { box-sizing: border-box; }
   body { margin: 0; font-family: "Pretendard", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
   .bar { height: 6px; background: linear-gradient(90deg, var(--navy) 0 33.3%, var(--blue) 33.3% 66.6%, var(--lime) 66.6%); }
-  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
+  main { max-width: 480px; margin: 0 auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); }
   h1 { font-size: 20px; color: var(--navy); margin: 4px 0 16px; text-align: center; }
-  #cert { width: 100%; display: block; box-shadow: 0 4px 18px rgba(0, 30, 70, .15); background: #fff; -webkit-touch-callout: default; }
+  #cert { width: 100%; display: block; border: 1px solid #DDE2E8; box-shadow: 0 4px 18px rgba(0, 30, 70, .12); background: #fff; -webkit-touch-callout: default; }
   .actions { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
-  button, .btn { font: inherit; font-size: 18px; border: 0; border-radius: 12px; padding: 16px; background: var(--navy); color: #fff; text-align: center; text-decoration: none; cursor: pointer; }
-  .hint { font-size: 14px; color: var(--sub); text-align: center; line-height: 1.6; margin: 14px 0 0; }
+  button { font: inherit; font-size: 18px; border: 0; border-radius: 12px; height: 56px; width: 100%; background: var(--navy); color: #fff; cursor: pointer; }
+  /* 주의사항: 페이지 최하단 */
+  footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid #DDE2E8; }
+  footer ul { margin: 0; padding-left: 16px; font-size: 12px; line-height: 1.7; color: var(--sub); }
   .msg { text-align: center; padding: 60px 8px; }
   .msg p { font-size: 18px; margin: 0 0 8px; }
   .msg small { color: var(--sub); font-size: 14px; }
@@ -37,8 +40,16 @@
     <div class="actions">
       <button type="button" id="save">사진으로 저장하기</button>
     </div>
-    <p class="hint">버튼이 동작하지 않으면 수료증 이미지를 <b>길게 눌러</b><br>'사진에 저장' 또는 '이미지 저장'을 선택하세요.<br>이 화면을 닫으면 다시 열 수 없으니 지금 저장해 주세요.</p>
   </div>
+
+  <footer>
+    <ul>
+      <li>이 화면을 닫으면 다시 열 수 없으니 지금 저장해 주세요.</li>
+      <li>저장 버튼이 동작하지 않으면 수료증 이미지를 <b>길게 눌러</b> '사진에 저장'을 선택하세요.</li>
+      <li>QR은 발급 후 30분 동안만 열립니다.</li>
+      <li>이름은 이 휴대폰 안에서만 수료증으로 만들어지며 어디에도 저장·전송되지 않습니다.</li>
+    </ul>
+  </footer>
 </main>
 
 <script src="certificate.js"></script>
