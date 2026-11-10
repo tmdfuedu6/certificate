@@ -38,6 +38,27 @@
   .primary:disabled { background: #9AA6B2; cursor: default; }
   .secondary { background: var(--bg); color: var(--navy); }
 
+  /* 수업코드 확인 */
+  .gate-title { margin: 0 0 4px; font-size: 18px; color: var(--navy); }
+  .gate-desc { margin: 0 0 16px; font-size: 14px; color: var(--sub); }
+  .error { margin: 10px 0 0; font-size: 14px; color: var(--warn); min-height: 1em; }
+  input[type=tel] {
+    width: 100%; height: 54px; font: inherit; font-size: 18px; padding: 0 14px; border: 1.5px solid var(--line); border-radius: 12px;
+    outline: none; color: var(--ink); background: #fff; -webkit-appearance: none; appearance: none;
+  }
+  .consent { margin-top: 18px; padding: 12px 14px; background: var(--bg); border-radius: 12px; }
+  .consent summary { font-size: 14px; color: var(--navy); cursor: pointer; }
+  .consent table { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
+  .consent th { width: 72px; text-align: left; vertical-align: top; color: var(--sub); font-weight: normal; padding: 4px 8px 4px 0; }
+  .consent td { padding: 4px 0; }
+  .consent details p { margin: 8px 0 0; font-size: 13px; color: var(--sub); }
+  .check { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; font-size: 15px; color: var(--ink); cursor: pointer; }
+  .check input { width: 22px; height: 22px; margin: 0; accent-color: var(--navy); flex: none; }
+  .class-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; }
+  .class-bar span { font-size: 15px; color: var(--sub); }
+  .class-bar b { color: var(--navy); }
+  .class-bar button { width: auto; height: 36px; padding: 0 14px; font-size: 14px; }
+
   .qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
   .qr-title { font-size: 18px; color: var(--navy); margin: 0; }
   #qr { padding: 12px; background: #fff; border: 1.5px solid var(--line); border-radius: 14px; }
@@ -64,10 +85,50 @@
   <header><h1>MSW 크리에이터 스쿨 수료증 발급</h1></header>
   <div class="warn" id="warn"></div>
 
-  <!-- 1단계: 입력 + 미리보기 -->
-  <form class="card" id="form" autocomplete="off">
+  <!-- 0단계: 수업코드·발급자 확인 -->
+  <form class="card" id="gate" autocomplete="off">
+    <p class="gate-title">발급 정보 입력</p>
+    <p class="gate-desc">발급 기간 중인 수업만 수료증을 발급할 수 있습니다.</p>
     <div class="field">
-      <label for="name">성함</label>
+      <label for="code">수업코드</label>
+      <input type="text" id="code" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="예: GU-MK-01" enterkeyhint="next">
+    </div>
+    <div class="field">
+      <label for="issuerName">발급자 성함</label>
+      <input type="text" id="issuerName" maxlength="20" autocomplete="off" spellcheck="false" placeholder="강사 성함" enterkeyhint="next">
+    </div>
+    <div class="field">
+      <label for="issuerPhone">발급자 연락처</label>
+      <input type="tel" id="issuerPhone" maxlength="13" autocomplete="off" inputmode="numeric" placeholder="010-0000-0000" enterkeyhint="done">
+    </div>
+
+    <div class="consent">
+      <details>
+        <summary>개인정보 수집·이용 안내</summary>
+        <table>
+          <tr><th>수집 항목</th><td>발급자 성함, 연락처 (수업코드·수료증 날짜와 함께 기록)</td></tr>
+          <tr><th>이용 목적</th><td>수료증 발급 이력 관리 및 부정 발급 확인</td></tr>
+          <tr><th>보유 기간</th><td>사업 종료(2027년 1월) 후 지체 없이 파기</td></tr>
+          <tr><th>동의 거부</th><td>동의를 거부할 수 있으며, 거부 시 수료증 발급 기능을 이용할 수 없습니다.</td></tr>
+        </table>
+        <p>학생 이름은 수집·저장하지 않습니다.</p>
+      </details>
+      <label class="check"><input type="checkbox" id="consent"> 개인정보 수집·이용에 동의합니다 (필수)</label>
+    </div>
+
+    <p class="error" id="gateError" role="alert"></p>
+    <button type="submit" class="primary" id="gateBtn" disabled>다음</button>
+  </form>
+
+  <section class="card class-bar" id="classBar" hidden>
+    <span>수업코드 <b id="classCode"></b> · <span id="classIssuer"></span></span>
+    <button type="button" class="secondary" id="changeCode">변경</button>
+  </section>
+
+  <!-- 1단계: 입력 + 미리보기 -->
+  <form class="card" id="form" autocomplete="off" hidden>
+    <div class="field">
+      <label for="name">학생 성함</label>
       <input type="text" id="name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="학생 이름 입력" enterkeyhint="done">
     </div>
     <div class="field">
@@ -77,7 +138,7 @@
     <button type="submit" class="primary" id="issue" disabled>QR 발급</button>
   </form>
 
-  <section class="card preview" id="previewCard"><canvas id="preview" aria-label="수료증 미리보기"></canvas></section>
+  <section class="card preview" id="previewCard" hidden><canvas id="preview" aria-label="수료증 미리보기"></canvas></section>
 
   <!-- 2단계: QR -->
   <section class="card qr-wrap" id="qrView" hidden>
@@ -93,7 +154,8 @@
 
   <footer>
     <ul>
-      <li>입력한 이름은 이 기기·서버 어디에도 저장되지 않습니다.</li>
+      <li>입력한 학생 이름은 이 기기·서버 어디에도 저장되지 않습니다.</li>
+      <li>발급 기록에는 수업코드·수료증 날짜·발급자 성함·연락처만 남습니다.</li>
       <li>QR은 발급 후 30분 동안만 열립니다.</li>
       <li>QR 화면은 3분 뒤 자동으로 초기화됩니다.</li>
     </ul>
@@ -102,17 +164,27 @@
 
 <script src="qrcode.min.js"></script>
 <script src="certificate.js"></script>
+<script src="access.js"></script>
+<script src="config.js"></script>
 <script>
 (function () {
   'use strict';
   var RESET_SECONDS = 180;
+  var HASH_PREFIX = 'msw-cert:';   // tools/build_access.js 와 동일해야 함
+  var MAX_FAILS = 5, LOCK_SECONDS = 30;
+  var SESSION_KEY = 'msw-cert-class'; // 탭을 닫으면 사라짐 (수업코드·발급자 정보만, 학생 이름 아님)
 
   var $ = function (id) { return document.getElementById(id); };
   var form = $('form'), nameEl = $('name'), dateEl = $('date'), issueBtn = $('issue');
   var qrView = $('qrView'), qrBox = $('qr'), qrName = $('qrName'), timerEl = $('timer');
   var canvas = $('preview'), previewCard = $('previewCard');
+  var gate = $('gate'), codeEl = $('code'), gateBtn = $('gateBtn'), gateError = $('gateError');
+  var issuerNameEl = $('issuerName'), issuerPhoneEl = $('issuerPhone'), consentEl = $('consent');
+  var classBar = $('classBar');
   var calibrate = new URLSearchParams(location.search).get('calibrate') === '1';
   var countdown = null;
+  var activeClass = null; // { code, from, to, issuerName, issuerPhone }
+  var fails = 0, lockedUntil = 0;
 
   dateEl.value = Certificate.todayISO();
 
@@ -122,6 +194,147 @@
     var w = $('warn');
     w.textContent = '지금 주소(' + (location.protocol === 'file:' ? '내 PC 파일' : host) + ')는 학생 휴대폰에서 열리지 않습니다. 배포된 주소에서 실행해야 QR이 동작합니다.';
     w.style.display = 'block';
+  }
+
+  // ---- 수업코드 확인 ----
+  function normalizeCode(code) {
+    return code.trim().toUpperCase().replace(/\s+/g, '');
+  }
+
+  function hashCode(code) {
+    var bytes = new TextEncoder().encode(HASH_PREFIX + normalizeCode(code));
+    return crypto.subtle.digest('SHA-256', bytes).then(function (buf) {
+      return Array.prototype.map.call(new Uint8Array(buf), function (b) {
+        return ('0' + b.toString(16)).slice(-2);
+      }).join('');
+    });
+  }
+
+  // { ok, message, entry } — 오늘 날짜가 기간 안이어야 통과
+  function checkCode(code) {
+    var list = (window.MSW_ACCESS && window.MSW_ACCESS.codes) || [];
+    return hashCode(code).then(function (h) {
+      var entry = list.filter(function (c) { return c.h === h; })[0];
+      if (!entry) return { ok: false, message: '발급할 수 없는 수업코드입니다. 코드를 다시 확인해 주세요.' };
+      var today = Certificate.todayISO();
+      if (today < entry.from) return { ok: false, message: '이 수업은 ' + entry.from + '부터 발급할 수 있습니다.' };
+      if (today > entry.to) return { ok: false, message: '발급 기간이 끝난 수업입니다. (~' + entry.to + ')' };
+      return { ok: true, entry: entry };
+    });
+  }
+
+  // ---- 발급자 정보 ----
+  // 숫자만 남겨 010-0000-0000 형태로
+  function formatPhone(value) {
+    var d = value.replace(/\D/g, '').slice(0, 11);
+    if (d.length < 4) return d;
+    if (d.length < 8) return d.slice(0, 3) + '-' + d.slice(3);
+    var mid = d.length === 10 ? 3 : 4;
+    return d.slice(0, 3) + '-' + d.slice(3, 3 + mid) + '-' + d.slice(3 + mid);
+  }
+
+  function isValidPhone(value) {
+    return /^01\d{8,9}$/.test(value.replace(/\D/g, ''));
+  }
+
+  function gateReady() {
+    return !!codeEl.value.trim() && !!issuerNameEl.value.trim() && isValidPhone(issuerPhoneEl.value) && consentEl.checked;
+  }
+
+  function updateGateButton() {
+    gateBtn.disabled = !gateReady();
+  }
+
+  function saveSession(data) {
+    try { data ? sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)) : sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+  }
+
+  function loadSession() {
+    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { return null; }
+  }
+
+  function enterClass(code, entry, issuer) {
+    activeClass = {
+      code: normalizeCode(code), from: entry.from, to: entry.to,
+      issuerName: issuer.name, issuerPhone: issuer.phone
+    };
+    saveSession({ code: activeClass.code, issuerName: issuer.name, issuerPhone: issuer.phone });
+    $('classCode').textContent = activeClass.code;
+    $('classIssuer').textContent = issuer.name;
+    gate.hidden = true;
+    classBar.hidden = false;
+    form.hidden = false;
+    previewCard.hidden = false;
+    draw();
+  }
+
+  function leaveClass(message) {
+    reset();
+    activeClass = null;
+    saveSession(null);
+    // 다른 강사가 이어서 쓸 수 있으므로 발급자 정보·동의도 모두 비운다
+    codeEl.value = '';
+    issuerNameEl.value = '';
+    issuerPhoneEl.value = '';
+    consentEl.checked = false;
+    gateBtn.disabled = true;
+    gateError.textContent = message || '';
+    classBar.hidden = true;
+    form.hidden = true;
+    previewCard.hidden = true;
+    gate.hidden = false;
+  }
+
+  [codeEl, issuerNameEl].forEach(function (el) {
+    el.addEventListener('input', function () { updateGateButton(); gateError.textContent = ''; });
+  });
+  issuerPhoneEl.addEventListener('input', function () {
+    issuerPhoneEl.value = formatPhone(issuerPhoneEl.value);
+    updateGateButton();
+    gateError.textContent = '';
+  });
+  consentEl.addEventListener('change', updateGateButton);
+
+  gate.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!gateReady()) return;
+    var code = codeEl.value;
+    var issuer = { name: issuerNameEl.value.trim(), phone: formatPhone(issuerPhoneEl.value) };
+    var wait = Math.ceil((lockedUntil - Date.now()) / 1000);
+    if (wait > 0) {
+      gateError.textContent = '입력 오류가 반복되어 ' + wait + '초 후 다시 시도할 수 있습니다.';
+      return;
+    }
+    gateBtn.disabled = true;
+    checkCode(code).then(function (r) {
+      updateGateButton();
+      if (r.ok) {
+        fails = 0;
+        if (document.activeElement) document.activeElement.blur();
+        return enterClass(code, r.entry, issuer);
+      }
+      fails += 1;
+      if (fails >= MAX_FAILS) {
+        fails = 0;
+        lockedUntil = Date.now() + LOCK_SECONDS * 1000;
+      }
+      gateError.textContent = r.message;
+    });
+  });
+
+  $('changeCode').addEventListener('click', function () { leaveClass(''); });
+
+  // ---- 발급 로그 (구글 설문지) — 수업코드·날짜·발급자, 학생 이름 없음 ----
+  function sendLog(dateISO) {
+    var cfg = window.MSW_LOG || {};
+    if (!cfg.formAction || !cfg.codeField || !cfg.dateField || !activeClass) return;
+    var body = new URLSearchParams();
+    body.append(cfg.codeField, activeClass.code);
+    body.append(cfg.dateField, dateISO);
+    if (cfg.issuerNameField) body.append(cfg.issuerNameField, activeClass.issuerName);
+    if (cfg.issuerPhoneField) body.append(cfg.issuerPhoneField, activeClass.issuerPhone);
+    // 응답은 읽을 수 없음(no-cors) — 전송만 하고 발급은 그대로 진행
+    fetch(cfg.formAction, { method: 'POST', mode: 'no-cors', body: body, keepalive: true }).catch(function () {});
   }
 
   function certUrl(token) {
@@ -148,6 +361,14 @@
     e.preventDefault();
     var name = nameEl.value.trim();
     if (!name || !dateEl.value) return;
+    // 화면을 켜 둔 채 기간이 지났을 수 있으므로 발급 직전에 다시 확인
+    if (!calibrate) {
+      var today = Certificate.todayISO();
+      if (!activeClass || today < activeClass.from || today > activeClass.to) {
+        return leaveClass('발급 기간이 끝난 수업입니다. 수업코드를 다시 확인해 주세요.');
+      }
+      sendLog(dateEl.value);
+    }
     qrBox.innerHTML = '';
     // 화면 폭에 맞춘 QR 크기 (카드·QR 여백 제외, 최대 300)
     var size = Math.max(200, Math.min(300, document.querySelector('.page').clientWidth - 92));
@@ -226,7 +447,22 @@
     sync();
   }
 
-  if (calibrate) setupCalibration();
+  if (calibrate) {
+    // 보정 모드는 수업코드 없이 바로 편집 화면
+    gate.hidden = true;
+    form.hidden = false;
+    previewCard.hidden = false;
+    setupCalibration();
+  } else {
+    // 새로고침해도 같은 탭이면 수업코드 유지 (기간은 다시 확인)
+    var saved = loadSession();
+    if (saved && saved.code && saved.issuerName && saved.issuerPhone) {
+      checkCode(saved.code).then(function (r) {
+        if (r.ok) enterClass(saved.code, r.entry, { name: saved.issuerName, phone: saved.issuerPhone });
+        else leaveClass(r.message);
+      });
+    }
+  }
 
   draw().catch(function (err) {
     var w = $('warn');
