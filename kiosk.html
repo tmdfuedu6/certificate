@@ -46,6 +46,12 @@
     width: 100%; height: 54px; font: inherit; font-size: 18px; padding: 0 14px; border: 1.5px solid var(--line); border-radius: 12px;
     outline: none; color: var(--ink); background: #fff; -webkit-appearance: none; appearance: none;
   }
+  .input-wrap { position: relative; }
+  .input-wrap input { padding-right: 96px; }
+  .input-wrap .paste {
+    position: absolute; top: 9px; right: 9px; width: auto; height: 36px; padding: 0 12px;
+    font-size: 14px; border-radius: 9px; background: var(--bg); color: var(--navy);
+  }
   .consent { margin-top: 18px; padding: 12px 14px; background: var(--bg); border-radius: 12px; }
   .consent summary { font-size: 14px; color: var(--navy); cursor: pointer; }
   .consent table { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
@@ -91,7 +97,10 @@
     <p class="gate-desc">발급 기간 중인 수업만 수료증을 발급할 수 있습니다.</p>
     <div class="field">
       <label for="code">수업코드</label>
-      <input type="text" id="code" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="예: GU-MK-01" enterkeyhint="next">
+      <div class="input-wrap">
+        <input type="text" id="code" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="예: GU-MK-01" enterkeyhint="next">
+        <button type="button" class="paste" id="pasteCode">붙여넣기</button>
+      </div>
     </div>
     <div class="field">
       <label for="issuerName">발급자 성함</label>
@@ -294,6 +303,30 @@
     gateError.textContent = '';
   });
   consentEl.addEventListener('change', updateGateButton);
+
+  // 수업확인 웹앱에서 복사한 수업코드 붙여넣기.
+  // 수업코드 모양(영문·숫자-영문·숫자…)이 아니면 넣지 않는다 — 명단 등 다른 복사 내용이 칸에 들어가지 않도록.
+  var CODE_PATTERN = /^(?=.*[A-Z])[A-Z0-9]+(-[A-Z0-9]+)+$/; // 영문 1자 이상 (전화번호 제외)
+  var PASTE_FALLBACK = '수업코드 칸을 길게 눌러 붙여넣어 주세요.';
+  $('pasteCode').addEventListener('click', function () {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      gateError.textContent = PASTE_FALLBACK;
+      return;
+    }
+    navigator.clipboard.readText().then(function (text) {
+      var code = normalizeCode(text || '');
+      if (!CODE_PATTERN.test(code) || code.length > 40) {
+        gateError.textContent = '수업코드가 복사되지 않았어요. 수업확인 화면에서 수업코드를 다시 눌러 주세요.';
+        return;
+      }
+      codeEl.value = code;
+      gateError.textContent = '';
+      updateGateButton();
+      issuerNameEl.focus();
+    }).catch(function () {
+      gateError.textContent = '붙여넣기가 허용되지 않았어요. ' + PASTE_FALLBACK;
+    });
+  });
 
   gate.addEventListener('submit', function (e) {
     e.preventDefault();
