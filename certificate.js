@@ -116,23 +116,95 @@
     });
   }
 
-  // ---- QR payload: {n: 이름, d: 날짜ISO, t: 발급시각ms} → base64url ----
-  function encode(name, dateISO) {
-    var json = JSON.stringify({ n: name, d: dateISO, t: Date.now() });
-    var bytes = new TextEncoder().encode(json);
+  // ---- QR payload 암호화 (ChaCha20, RFC 8439) ----
+  // QR 스캔 앱·AI(구글렌즈 등)가 Base64를 풀어 이름을 읽지 못하게 한다.
+  // 키가 공개 코드에 있으므로 "지나가다 노출"을 막는 용도이며, 코드를 분석하는 공격까지 막지는 못한다.
+  var CIPHER_KEY = 'dd6338c718d58772ab2c8a8a358b17e669d4c0aa7f19eeb138775d995a0b4552';
+  var NONCE_BYTES = 12;
+
+  function hexToBytes(hex) {
+    var out = new Uint8Array(hex.length / 2);
+    for (var i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+    return out;
+  }
+
+  function wordsLE(bytes) {
+    var w = new Uint32Array(bytes.length / 4);
+    for (var i = 0; i < w.length; i++) {
+      w[i] = bytes[i * 4] | (bytes[i * 4 + 1] << 8) | (bytes[i * 4 + 2] << 16) | (bytes[i * 4 + 3] << 24);
+    }
+    return w;
+  }
+
+  function chachaBlock(key, counter, nonce) {
+    var s = new Uint32Array([
+      0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
+      key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[7],
+      counter, nonce[0], nonce[1], nonce[2]
+    ]);
+    var x = new Uint32Array(s);
+    function qr(a, b, c, d) {
+      x[a] += x[b]; x[d] ^= x[a]; x[d] = (x[d] << 16) | (x[d] >>> 16);
+      x[c] += x[d]; x[b] ^= x[c]; x[b] = (x[b] << 12) | (x[b] >>> 20);
+      x[a] += x[b]; x[d] ^= x[a]; x[d] = (x[d] << 8) | (x[d] >>> 24);
+      x[c] += x[d]; x[b] ^= x[c]; x[b] = (x[b] << 7) | (x[b] >>> 25);
+    }
+    for (var i = 0; i < 10; i++) {
+      qr(0, 4, 8, 12); qr(1, 5, 9, 13); qr(2, 6, 10, 14); qr(3, 7, 11, 15);
+      qr(0, 5, 10, 15); qr(1, 6, 11, 12); qr(2, 7, 8, 13); qr(3, 4, 9, 14);
+    }
+    var out = new Uint8Array(64);
+    for (var j = 0; j < 16; j++) {
+      var v = (x[j] + s[j]) >>> 0;
+      out[j * 4] = v & 255; out[j * 4 + 1] = (v >>> 8) & 255;
+      out[j * 4 + 2] = (v >>> 16) & 255; out[j * 4 + 3] = v >>> 24;
+    }
+    return out;
+  }
+
+  // 암호화·복호화 동일 연산 (keystream XOR)
+  function chacha20(keyBytes, nonceBytes, data) {
+    var key = wordsLE(keyBytes), nonce = wordsLE(nonceBytes);
+    var out = new Uint8Array(data.length);
+    for (var off = 0, counter = 1; off < data.length; off += 64, counter++) {
+      var ks = chachaBlock(key, counter, nonce);
+      for (var i = 0; i < 64 && off + i < data.length; i++) out[off + i] = data[off + i] ^ ks[i];
+    }
+    return out;
+  }
+
+  function toBase64Url(bytes) {
     var bin = '';
     bytes.forEach(function (b) { bin += String.fromCharCode(b); });
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
 
+  function fromBase64Url(token) {
+    var b64 = token.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
+  // {n: 이름, d: 날짜ISO, t: 발급시각ms} → base64url(nonce 12바이트 + 암호문)
+  function encode(name, dateISO) {
+    var json = JSON.stringify({ n: name, d: dateISO, t: Date.now() });
+    var nonce = crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
+    var cipher = chacha20(hexToBytes(CIPHER_KEY), nonce, new TextEncoder().encode(json));
+    var packed = new Uint8Array(NONCE_BYTES + cipher.length);
+    packed.set(nonce, 0);
+    packed.set(cipher, NONCE_BYTES);
+    return toBase64Url(packed);
+  }
+
   function decode(token) {
     try {
-      var b64 = token.replace(/-/g, '+').replace(/_/g, '/');
-      while (b64.length % 4) b64 += '=';
-      var bin = atob(b64);
-      var bytes = new Uint8Array(bin.length);
-      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      var data = JSON.parse(new TextDecoder().decode(bytes));
+      var packed = fromBase64Url(token);
+      if (packed.length <= NONCE_BYTES) return null;
+      var plain = chacha20(hexToBytes(CIPHER_KEY), packed.subarray(0, NONCE_BYTES), packed.subarray(NONCE_BYTES));
+      var data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plain));
       if (!data || typeof data.n !== 'string' || !data.n) return null;
       return data;
     } catch (e) {
